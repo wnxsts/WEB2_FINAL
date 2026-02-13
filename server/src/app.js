@@ -69,7 +69,6 @@ app.use("/api/logs", logRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/reminders", reminderRoutes);
 
-// Serve frontend as static files (single port)
 const frontendPath = path.join(__dirname, "..", "..", "frontend");
 app.use(express.static(frontendPath));
 

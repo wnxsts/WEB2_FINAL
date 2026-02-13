@@ -1,5 +1,6 @@
 // Dashboard: habits CRUD plus log management.
 let habits = [];
+let categories = [];
 let currentHabitId = null;
 let habitModal = null;
 let logsModal = null;
@@ -23,11 +24,31 @@ function resetHabitForm() {
   document.getElementById("habitTitle").value = "";
   document.getElementById("habitDescription").value = "";
   document.getElementById("habitFrequency").value = "daily";
+  document.getElementById("habitCategory").value = "";
   document.getElementById("habitStart").value = "";
   document.getElementById("habitActive").checked = true;
   showAlert("habitAlert", "", "success");
   const container = document.getElementById("habitAlert");
   if (container) container.innerHTML = "";
+}
+
+function renderCategoryDropdown() {
+  const select = document.getElementById("habitCategory");
+  if (!select) return;
+
+  select.innerHTML = "";
+
+  const emptyOption = document.createElement("option");
+  emptyOption.value = "";
+  emptyOption.textContent = "No category";
+  select.appendChild(emptyOption);
+
+  categories.forEach((category) => {
+    const option = document.createElement("option");
+    option.value = category._id || category.id;
+    option.textContent = category.name || "Unnamed";
+    select.appendChild(option);
+  });
 }
 
 function renderHabits() {
@@ -74,6 +95,10 @@ function renderHabits() {
         <div class="meta-value">${formatDate(habit.startDate)}</div>
       </div>
       <div>
+        <div class="meta-label">Category</div>
+        <div class="meta-value">${habit.category?.name || "No category"}</div>
+      </div>
+      <div>
         <div class="meta-label">Status</div>
         <div class="meta-value">${habit.isActive === false ? "Inactive" : "Active"}</div>
       </div>
@@ -118,6 +143,18 @@ async function loadHabits() {
   }
 }
 
+async function loadCategories() {
+  try {
+    categories = await apiRequest("GET", "/categories");
+    if (!Array.isArray(categories)) {
+      categories = [];
+    }
+    renderCategoryDropdown();
+  } catch (error) {
+    showAlert("alertContainer", error.message);
+  }
+}
+
 async function loadStats() {
   try {
     const stats = await apiRequest("GET", "/habits/stats");
@@ -140,6 +177,7 @@ function openEditHabit(habit) {
   document.getElementById("habitTitle").value = habit.title || "";
   document.getElementById("habitDescription").value = habit.description || "";
   document.getElementById("habitFrequency").value = habit.frequency || "daily";
+  document.getElementById("habitCategory").value = habit.category?._id || habit.categoryId || "";
   document.getElementById("habitStart").value = habit.startDate ? habit.startDate.substring(0, 10) : "";
   document.getElementById("habitActive").checked = habit.isActive !== false;
   const container = document.getElementById("habitAlert");
@@ -153,6 +191,7 @@ async function saveHabit() {
     title: document.getElementById("habitTitle").value.trim(),
     description: document.getElementById("habitDescription").value.trim() || undefined,
     frequency: document.getElementById("habitFrequency").value,
+    categoryId: document.getElementById("habitCategory").value || undefined,
     startDate: document.getElementById("habitStart").value || undefined,
     isActive: document.getElementById("habitActive").checked,
   };
@@ -308,5 +347,6 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("logForm").addEventListener("submit", addLog);
 
   setHabitModalMode(false);
+  loadCategories();
   loadHabits();
 });

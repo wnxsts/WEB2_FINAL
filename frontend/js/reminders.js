@@ -13,6 +13,7 @@ function setReminderModalMode(isEdit) {
 function resetReminderForm() {
   document.getElementById("reminderId").value = "";
   document.getElementById("reminderHabit").value = "";
+  document.getElementById("reminderCategory").value = "-";
   document.getElementById("reminderTime").value = "";
   document.getElementById("reminderDays").value = "";
   document.getElementById("reminderEnabled").checked = true;
@@ -33,7 +34,10 @@ function renderHabitsDropdown() {
   habits.forEach((habit) => {
     const option = document.createElement("option");
     option.value = habit._id || habit.id;
-    option.textContent = habit.title || "Untitled";
+    const categoryName = habit.category?.name;
+    option.textContent = categoryName
+      ? `${habit.title || "Untitled"} (${categoryName})`
+      : habit.title || "Untitled";
     select.appendChild(option);
   });
 }
@@ -47,7 +51,7 @@ function renderReminders() {
   if (!reminders.length) {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
-    cell.colSpan = 5;
+    cell.colSpan = 6;
     cell.className = "text-center text-muted py-3";
     cell.textContent = "No reminders yet.";
     row.appendChild(cell);
@@ -59,6 +63,9 @@ function renderReminders() {
     const row = document.createElement("tr");
     const habitCell = document.createElement("td");
     habitCell.textContent = reminder.habit?.title || habitTitleById(reminder.habitId) || "-";
+
+    const categoryCell = document.createElement("td");
+    categoryCell.textContent = reminder.habit?.category?.name || habitCategoryById(reminder.habitId) || "-";
 
     const timeCell = document.createElement("td");
     timeCell.textContent = reminder.time || "-";
@@ -89,7 +96,7 @@ function renderReminders() {
     deleteBtn.addEventListener("click", () => deleteReminder(reminder));
 
     actionsCell.append(editBtn, deleteBtn);
-    row.append(habitCell, timeCell, daysCell, statusCell, actionsCell);
+    row.append(habitCell, categoryCell, timeCell, daysCell, statusCell, actionsCell);
     tbody.appendChild(row);
   });
 }
@@ -97,6 +104,18 @@ function renderReminders() {
 function habitTitleById(id) {
   const habit = habits.find((item) => (item._id || item.id) === id);
   return habit?.title;
+}
+
+function habitCategoryById(id) {
+  const habit = habits.find((item) => (item._id || item.id) === id);
+  return habit?.category?.name;
+}
+
+function updateSelectedHabitCategory() {
+  const selectedHabitId = document.getElementById("reminderHabit").value;
+  const categoryInput = document.getElementById("reminderCategory");
+  const habit = habits.find((item) => (item._id || item.id) === selectedHabitId);
+  categoryInput.value = habit?.category?.name || "No category";
 }
 
 async function loadHabits() {
@@ -127,6 +146,7 @@ function openEditReminder(reminder) {
   setReminderModalMode(true);
   document.getElementById("reminderId").value = reminder._id || reminder.id || "";
   document.getElementById("reminderHabit").value = reminder.habitId || reminder.habit?._id || "";
+  updateSelectedHabitCategory();
   document.getElementById("reminderTime").value = reminder.time || "";
   if (Array.isArray(reminder.daysOfWeek)) {
     document.getElementById("reminderDays").value = reminder.daysOfWeek.join(", ");
@@ -200,6 +220,7 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("saveReminderBtn").addEventListener("click", saveReminder);
+  document.getElementById("reminderHabit").addEventListener("change", updateSelectedHabitCategory);
 
   setReminderModalMode(false);
   loadHabits();

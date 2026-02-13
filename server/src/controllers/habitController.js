@@ -1,11 +1,30 @@
 const Habit = require("../models/Habit");
 const HabitLog = require("../models/HabitLog");
+const Category = require("../models/Category");
+const Reminder = require("../models/Reminder");
 const { asyncHandler } = require("../middleware/async");
 const { startOfDay, endOfDay } = require("../utils/date");
 
+async function resolveCategory(categoryId, user) {
+  if (!categoryId) {
+    return { category: null };
+  }
+
+  const category = await Category.findById(categoryId);
+  if (!category) {
+    return { error: "Category not found.", status: 404 };
+  }
+
+  if (user.role !== "admin" && category.user.toString() !== user.id) {
+    return { error: "Forbidden.", status: 403 };
+  }
+
+  return { category };
+}
+
 const listHabits = asyncHandler(async (req, res) => {
   const filter = { user: req.user.id };
-  const habits = await Habit.find(filter).sort({ createdAt: -1 });
+  const habits = await Habit.find(filter).populate("category", "name color").sort({ createdAt: -1 });
   return res.json(habits);
 });
 
@@ -39,7 +58,18 @@ const getStats = asyncHandler(async (req, res) => {
 });
 
 const createHabit = asyncHandler(async (req, res) => {
-  const habit = await Habit.create({ ...req.body, user: req.user.id });
+  const { categoryId, ...habitData } = req.body;
+  const { category, error, status } = await resolveCategory(categoryId, req.user);
+  if (error) {
+    return res.status(status).json({ message: error });
+  }
+
+  const habit = await Habit.create({
+    ...habitData,
+    user: req.user.id,
+    category: category ? category._id : null,
+  });
+  await habit.populate("category", "name color");
   return res.status(201).json(habit);
 });
 
@@ -52,8 +82,18 @@ const updateHabit = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: "Forbidden." });
   }
 
-  Object.assign(habit, req.body);
+  const { categoryId, ...habitData } = req.body;
+  if (Object.prototype.hasOwnProperty.call(req.body, "categoryId")) {
+    const { category, error, status } = await resolveCategory(categoryId, req.user);
+    if (error) {
+      return res.status(status).json({ message: error });
+    }
+    habit.category = category ? category._id : null;
+  }
+
+  Object.assign(habit, habitData);
   await habit.save();
+  await habit.populate("category", "name color");
   return res.json(habit);
 });
 
@@ -67,6 +107,7 @@ const deleteHabit = asyncHandler(async (req, res) => {
   }
 
   await HabitLog.deleteMany({ habit: habit._id });
+  await Reminder.deleteMany({ habit: habit._id });
   await habit.deleteOne();
   return res.json({ message: "Habit deleted." });
 });
